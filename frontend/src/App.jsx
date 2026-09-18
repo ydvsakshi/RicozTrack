@@ -123,7 +123,7 @@ function App() {
       return;
     }
 
-    apiFetch("http://localhost:5000/api/projects")
+    apiFetch("https://ricoztrack.onrender.com/api/projects")
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch projects");
@@ -176,7 +176,7 @@ function App() {
       return;
     }
 
-    apiFetch("http://localhost:5000/api/tasks")
+    apiFetch("https://ricoztrack.onrender.com/api/tasks")
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch tasks");
@@ -209,7 +209,7 @@ function App() {
       return;
     }
 
-    apiFetch("http://localhost:5000/api/resources")
+    apiFetch("https://ricoztrack.onrender.com/api/resources")
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch resources");
@@ -234,7 +234,7 @@ function App() {
       return;
     }
 
-    apiFetch("http://localhost:5000/api/risks")
+    apiFetch("https://ricoztrack.onrender.com/api/risks")
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch risks");
@@ -265,7 +265,7 @@ function App() {
       return;
     }
 
-    apiFetch("http://localhost:5000/api/dependencies")
+    apiFetch("https://ricoztrack.onrender.com/api/dependencies")
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to fetch dependencies");
@@ -418,7 +418,7 @@ function App() {
 
     try {
       const response = await apiFetch(
-        "http://localhost:5000/api/projects",
+       "https://ricoztrack.onrender.com/api/projects",
         {
           method: "POST",
           headers: {
@@ -506,7 +506,7 @@ function App() {
 
     try {
       const response = await apiFetch(
-        `http://localhost:5000/api/projects/${editingProjectId}`,
+        `https://ricoztrack.onrender.com/api/projects/${editingProjectId}`,
         {
           method: "PUT",
           headers: {
@@ -516,7 +516,16 @@ function App() {
         }
       );
 
-      const data = await response.json();
+     const text = await response.text();
+console.log("SERVER RESPONSE:", text);
+
+let data = {};
+
+try {
+  data = JSON.parse(text);
+} catch (error) {
+  data = { message: text };
+}
 
       if (!response.ok) {
         throw new Error(
@@ -565,7 +574,7 @@ function App() {
 
     try {
       const response = await apiFetch(
-        `http://localhost:5000/api/projects/${id}`,
+        `https://ricoztrack.onrender.com/api/projects/${id}`,
         {
           method: "DELETE",
         }
@@ -608,7 +617,7 @@ function App() {
 
     try {
       const response = await apiFetch(
-        "http://localhost:5000/api/tasks",
+        "https://ricoztrack.onrender.com/api/tasks",
         {
           method: "POST",
           headers: {
@@ -678,7 +687,7 @@ function App() {
 
     try {
       const response = await apiFetch(
-        `http://localhost:5000/api/tasks/${editingTaskId}`,
+        `https://ricoztrack.onrender.com/api/tasks/${editingTaskId}`,
         {
           method: "PUT",
           headers: {
@@ -727,7 +736,7 @@ function App() {
 
     try {
       const response = await apiFetch(
-        `http://localhost:5000/api/tasks/${id}`,
+        `https://ricoztrack.onrender.com/api/tasks/${id}`,
         {
           method: "DELETE",
         }
@@ -766,7 +775,7 @@ function App() {
 
     try {
       const response = await apiFetch(
-        "http://localhost:5000/api/resources",
+        "https://ricoztrack.onrender.com/api/resources",
         {
           method: "POST",
           headers: {
@@ -822,7 +831,7 @@ function App() {
 
     try {
       const response = await apiFetch(
-        `http://localhost:5000/api/resources/${id}`,
+        `https://ricoztrack.onrender.com/api/resources/${id}`,
         {
           method: "DELETE",
         }
@@ -861,7 +870,7 @@ function App() {
 
     try {
       const response = await apiFetch(
-        "http://localhost:5000/api/risks",
+        "https://ricoztrack.onrender.com/api/risks",
         {
           method: "POST",
           headers: {
@@ -930,7 +939,7 @@ function App() {
 
     try {
       const response = await apiFetch(
-        `http://localhost:5000/api/risks/${id}`,
+       `https://ricoztrack.onrender.com/api/risks/${id}`,
         {
           method: "DELETE",
         }
@@ -974,7 +983,7 @@ function App() {
 
     try {
       const response = await apiFetch(
-        "http://localhost:5000/api/dependencies",
+        "https://ricoztrack.onrender.com/api/dependencies",
         {
           method: "POST",
           headers: {
@@ -1027,7 +1036,7 @@ function App() {
 
     try {
       const response = await apiFetch(
-        `http://localhost:5000/api/dependencies/${id}`,
+       `https://ricoztrack.onrender.com/api/dependencies/${id}`,
         {
           method: "DELETE",
         }

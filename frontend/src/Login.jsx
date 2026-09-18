@@ -11,8 +11,8 @@ function Login({ onLogin }) {
     e.preventDefault();
 
     const url = isSignup
-      ? "http://localhost:5000/api/users/signup"
-      : "http://localhost:5000/api/users/login";
+      ? "https://ricoztrack.onrender.com/api/users/signup"
+      : "https://ricoztrack.onrender.com/api/users/login";
 
     const body = isSignup
       ? { name, email, password }
@@ -27,20 +27,39 @@ function Login({ onLogin }) {
         body: JSON.stringify(body),
       });
 
-      const data = await response.json();
+      const text = await response.text();
+
+      console.log("SERVER RESPONSE:", text);
+
+      let data = {};
+
+      try {
+        data = JSON.parse(text);
+      } catch (error) {
+        data = {
+          message: text || "Server returned an empty response",
+        };
+      }
 
       if (!response.ok) {
-        alert(data.message || "Something went wrong");
+        alert(
+          data.error
+            ? `${data.message}: ${data.error}`
+            : data.message || "Something went wrong"
+        );
         return;
       }
 
       if (isSignup) {
         alert("Signup successful! Please login.");
+
         setIsSignup(false);
         setName("");
+        setEmail("");
         setPassword("");
       } else {
         localStorage.setItem("ricoztrack_token", data.token);
+
         localStorage.setItem(
           "ricoztrack_user",
           JSON.stringify(data.user)
@@ -49,8 +68,9 @@ function Login({ onLogin }) {
         onLogin(data.user);
       }
     } catch (error) {
-      alert("Unable to connect to server.");
-      console.error(error);
+      console.error("LOGIN ERROR:", error);
+
+      alert("Unable to connect to server. Please try again.");
     }
   };
 
@@ -58,16 +78,20 @@ function Login({ onLogin }) {
     <div className="login-page">
       <div className="login-box">
         <h1>RicozTrack</h1>
+
         <p className="login-subtitle">
           Project Management System
         </p>
 
-        <h2>{isSignup ? "Create Account" : "Welcome Back"}</h2>
+        <h2>
+          {isSignup ? "Create Account" : "Welcome Back"}
+        </h2>
 
         <form onSubmit={handleSubmit}>
           {isSignup && (
             <>
               <label>Name</label>
+
               <input
                 type="text"
                 placeholder="Enter your name"
@@ -79,6 +103,7 @@ function Login({ onLogin }) {
           )}
 
           <label>Email</label>
+
           <input
             type="email"
             placeholder="Enter your email"
@@ -88,6 +113,7 @@ function Login({ onLogin }) {
           />
 
           <label>Password</label>
+
           <input
             type="password"
             placeholder="Enter your password"
@@ -96,7 +122,10 @@ function Login({ onLogin }) {
             required
           />
 
-          <button type="submit" className="login-button">
+          <button
+            type="submit"
+            className="login-button"
+          >
             {isSignup ? "Sign Up" : "Login"}
           </button>
         </form>
