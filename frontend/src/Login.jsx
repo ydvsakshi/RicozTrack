@@ -11,8 +11,8 @@ function Login({ onLogin }) {
     e.preventDefault();
 
     const url = isSignup
-      ? "https://ricoztrack.onrender.com/api/users/signup"
-      : "https://ricoztrack.onrender.com/api/users/login";
+      ? "https://ricoztrack-backend.onrender.com/api/users/signup"
+      : "https://ricoztrack-backend.onrender.com/api/users/login";
 
     const body = isSignup
       ? { name, email, password }

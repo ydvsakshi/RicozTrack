@@ -15,16 +15,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MongoDB connection
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("MongoDB connected successfully!");
-  })
-  .catch((error) => {
-    console.log("MongoDB connection error:", error.message);
-  });
-
 // Test API
 app.get("/api/test", (req, res) => {
   res.json({
@@ -48,8 +38,13 @@ app.use("/api/tasks", taskRoutes);
 // Resources API
 app.use("/api/resources", resourceRoutes);
 
+// Risks API
 app.use("/api/risks", riskRoutes);
+
+// Dependencies API
 app.use("/api/dependencies", dependencyRoutes);
+
+// Users API
 app.use("/api/users", userRoutes);
 
 // Home route
@@ -61,6 +56,24 @@ app.get("/", (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`RicozTrack Backend running on http://localhost:${PORT}`);
-});
+// Start server only after MongoDB connection
+async function startServer() {
+  try {
+    if (!process.env.MONGO_URI) {
+      throw new Error("MONGO_URI is not defined");
+    }
+
+    await mongoose.connect(process.env.MONGO_URI);
+
+    console.log("MongoDB connected successfully!");
+
+    app.listen(PORT, () => {
+      console.log(`RicozTrack Backend running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error("MongoDB connection failed:", error.message);
+    process.exit(1);
+  }
+}
+
+startServer();

@@ -1,8 +1,17 @@
 import { useState, useEffect } from "react";
 import "./App.css";
 import Login from "./Login";
+import LandingPage from "./LandingPage";
+
+const API_BASE_URL = "https://ricoztrack-backend.onrender.com";
 
 function App() {
+  // =========================
+  // AUTHENTICATION
+  // =========================
+
+  const [showLanding, setShowLanding] = useState(true);
+
   const [loggedInUser, setLoggedInUser] = useState(() => {
     const savedUser = localStorage.getItem("ricoztrack_user");
 
@@ -21,22 +30,46 @@ function App() {
 
   const [activePage, setActivePage] = useState("Dashboard");
 
+  // =========================
+  // DATA STATES
+  // =========================
+
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [resources, setResources] = useState([]);
   const [risks, setRisks] = useState([]);
   const [dependencies, setDependencies] = useState([]);
 
+  // =========================
+  // FILTERS
+  // =========================
+
   const [taskFilter, setTaskFilter] = useState("All");
+
+  // =========================
+  // FORM STATES
+  // =========================
 
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [showResourceForm, setShowResourceForm] = useState(false);
   const [showRiskForm, setShowRiskForm] = useState(false);
-  const [showDependencyForm, setShowDependencyForm] = useState(false);
+  const [showDependencyForm, setShowDependencyForm] =
+    useState(false);
 
-  const [editingProjectId, setEditingProjectId] = useState(null);
-  const [editingTaskId, setEditingTaskId] = useState(null);
+  // =========================
+  // EDIT STATES
+  // =========================
+
+  const [editingProjectId, setEditingProjectId] =
+    useState(null);
+
+  const [editingTaskId, setEditingTaskId] =
+    useState(null);
+
+  // =========================
+  // PROJECT FORM
+  // =========================
 
   const [newProject, setNewProject] = useState({
     name: "",
@@ -45,6 +78,10 @@ function App() {
     progress: 0,
     dueDate: "",
   });
+
+  // =========================
+  // TASK FORM
+  // =========================
 
   const [newTask, setNewTask] = useState({
     name: "",
@@ -55,6 +92,10 @@ function App() {
     dueDate: "",
   });
 
+  // =========================
+  // RESOURCE FORM
+  // =========================
+
   const [newResource, setNewResource] = useState({
     name: "",
     role: "",
@@ -63,6 +104,10 @@ function App() {
     project: "Unassigned",
     workload: 0,
   });
+
+  // =========================
+  // RISK FORM
+  // =========================
 
   const [newRisk, setNewRisk] = useState({
     name: "",
@@ -73,6 +118,10 @@ function App() {
     status: "Open",
     mitigation: "",
   });
+
+  // =========================
+  // DEPENDENCY FORM
+  // =========================
 
   const [newDependency, setNewDependency] = useState({
     name: "",
@@ -88,13 +137,19 @@ function App() {
   // =========================
 
   const apiFetch = async (url, options = {}) => {
-    const token = localStorage.getItem("ricoztrack_token");
+    const token = localStorage.getItem(
+      "ricoztrack_token"
+    );
 
     const response = await fetch(url, {
       ...options,
       headers: {
         ...(options.headers || {}),
-        Authorization: `Bearer ${token}`,
+        ...(token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : {}),
       },
     });
 
@@ -115,6 +170,26 @@ function App() {
   };
 
   // =========================
+  // SAFE RESPONSE READER
+  // =========================
+
+  const getResponseData = async (response) => {
+    const text = await response.text();
+
+    if (!text) {
+      return {};
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch (error) {
+      return {
+        message: text,
+      };
+    }
+  };
+
+  // =========================
   // LOAD PROJECTS
   // =========================
 
@@ -123,22 +198,32 @@ function App() {
       return;
     }
 
-    apiFetch("https://ricoztrack.onrender.com/api/projects")
-      .then((response) => {
+    apiFetch(`${API_BASE_URL}/api/projects`)
+      .then(async (response) => {
+        const data = await getResponseData(response);
+
         if (!response.ok) {
-          throw new Error("Failed to fetch projects");
+          throw new Error(
+            data.message || "Failed to fetch projects"
+          );
         }
 
-        return response.json();
+        return data;
       })
       .then((data) => {
-        const formattedProjects = data.map((project) => ({
-          ...project,
-          status:
-            project.status === "Active"
-              ? "In Progress"
-              : project.status,
-        }));
+        const projectList = Array.isArray(data)
+          ? data
+          : [];
+
+        const formattedProjects = projectList.map(
+          (project) => ({
+            ...project,
+            status:
+              project.status === "Active"
+                ? "In Progress"
+                : project.status,
+          })
+        );
 
         setProjects(formattedProjects);
 
@@ -146,24 +231,30 @@ function App() {
           setNewTask((current) => ({
             ...current,
             project:
-              current.project || formattedProjects[0].name,
+              current.project ||
+              formattedProjects[0].name,
           }));
 
           setNewRisk((current) => ({
             ...current,
             project:
-              current.project || formattedProjects[0].name,
+              current.project ||
+              formattedProjects[0].name,
           }));
 
           setNewDependency((current) => ({
             ...current,
             project:
-              current.project || formattedProjects[0].name,
+              current.project ||
+              formattedProjects[0].name,
           }));
         }
       })
       .catch((error) => {
-        console.error("Error fetching projects:", error);
+        console.error(
+          "Error fetching projects:",
+          error
+        );
       });
   }, [loggedInUser]);
 
@@ -176,27 +267,42 @@ function App() {
       return;
     }
 
-    apiFetch("https://ricoztrack.onrender.com/api/tasks")
-      .then((response) => {
+    apiFetch(`${API_BASE_URL}/api/tasks`)
+      .then(async (response) => {
+        const data = await getResponseData(response);
+
         if (!response.ok) {
-          throw new Error("Failed to fetch tasks");
+          throw new Error(
+            data.message || "Failed to fetch tasks"
+          );
         }
 
-        return response.json();
+        return data;
       })
       .then((data) => {
-        setTasks(data);
+        const taskList = Array.isArray(data)
+          ? data
+          : [];
 
-        if (data.length > 0) {
+        setTasks(taskList);
+
+        if (taskList.length > 0) {
           setNewDependency((current) => ({
             ...current,
-            task: current.task || data[0].name,
-            dependsOn: current.dependsOn || data[0].name,
+            task:
+              current.task ||
+              taskList[0].name,
+            dependsOn:
+              current.dependsOn ||
+              taskList[0].name,
           }));
         }
       })
       .catch((error) => {
-        console.error("Error fetching tasks:", error);
+        console.error(
+          "Error fetching tasks:",
+          error
+        );
       });
   }, [loggedInUser]);
 
@@ -209,19 +315,28 @@ function App() {
       return;
     }
 
-    apiFetch("https://ricoztrack.onrender.com/api/resources")
-      .then((response) => {
+    apiFetch(`${API_BASE_URL}/api/resources`)
+      .then(async (response) => {
+        const data = await getResponseData(response);
+
         if (!response.ok) {
-          throw new Error("Failed to fetch resources");
+          throw new Error(
+            data.message || "Failed to fetch resources"
+          );
         }
 
-        return response.json();
+        return data;
       })
       .then((data) => {
-        setResources(data);
+        setResources(
+          Array.isArray(data) ? data : []
+        );
       })
       .catch((error) => {
-        console.error("Error fetching resources:", error);
+        console.error(
+          "Error fetching resources:",
+          error
+        );
       });
   }, [loggedInUser]);
 
@@ -234,25 +349,38 @@ function App() {
       return;
     }
 
-    apiFetch("https://ricoztrack.onrender.com/api/risks")
-      .then((response) => {
+    apiFetch(`${API_BASE_URL}/api/risks`)
+      .then(async (response) => {
+        const data = await getResponseData(response);
+
         if (!response.ok) {
-          throw new Error("Failed to fetch risks");
+          throw new Error(
+            data.message || "Failed to fetch risks"
+          );
         }
 
-        return response.json();
+        return data;
       })
       .then((data) => {
-        const formattedRisks = data.map((risk) => ({
-          ...risk,
-          name: risk.title,
-          mitigation: risk.mitigation || "",
-        }));
+        const riskList = Array.isArray(data)
+          ? data
+          : [];
+
+        const formattedRisks = riskList.map(
+          (risk) => ({
+            ...risk,
+            name: risk.title || risk.name,
+            mitigation: risk.mitigation || "",
+          })
+        );
 
         setRisks(formattedRisks);
       })
       .catch((error) => {
-        console.error("Error fetching risks:", error);
+        console.error(
+          "Error fetching risks:",
+          error
+        );
       });
   }, [loggedInUser]);
 
@@ -265,19 +393,31 @@ function App() {
       return;
     }
 
-    apiFetch("https://ricoztrack.onrender.com/api/dependencies")
-      .then((response) => {
+    apiFetch(
+      `${API_BASE_URL}/api/dependencies`
+    )
+      .then(async (response) => {
+        const data = await getResponseData(response);
+
         if (!response.ok) {
-          throw new Error("Failed to fetch dependencies");
+          throw new Error(
+            data.message ||
+              "Failed to fetch dependencies"
+          );
         }
 
-        return response.json();
+        return data;
       })
       .then((data) => {
-        setDependencies(data);
+        setDependencies(
+          Array.isArray(data) ? data : []
+        );
       })
       .catch((error) => {
-        console.error("Error fetching dependencies:", error);
+        console.error(
+          "Error fetching dependencies:",
+          error
+        );
       });
   }, [loggedInUser]);
 
@@ -356,16 +496,23 @@ function App() {
 
     let severity = "Low";
 
-    if (probability === "High" && impact === "High") {
+    if (
+      probability === "High" &&
+      impact === "High"
+    ) {
       severity = "Critical";
     } else if (
-      (probability === "High" && impact === "Medium") ||
-      (probability === "Medium" && impact === "High")
+      (probability === "High" &&
+        impact === "Medium") ||
+      (probability === "Medium" &&
+        impact === "High")
     ) {
       severity = "High";
     } else if (
-      (probability === "High" && impact === "Low") ||
-      (probability === "Low" && impact === "High")
+      (probability === "High" &&
+        impact === "Low") ||
+      (probability === "Low" &&
+        impact === "High")
     ) {
       severity = "Medium";
     } else if (
@@ -373,6 +520,11 @@ function App() {
       impact === "Medium"
     ) {
       severity = "Medium";
+    } else if (
+      probability === "Low" &&
+      impact === "Low"
+    ) {
+      severity = "Low";
     }
 
     setNewRisk((current) => ({
@@ -402,8 +554,13 @@ function App() {
   const handleCreateProject = async (event) => {
     event.preventDefault();
 
-    if (!newProject.name || !newProject.manager) {
-      alert("Please enter Project Name and Manager.");
+    if (
+      !newProject.name ||
+      !newProject.manager
+    ) {
+      alert(
+        "Please enter Project Name and Manager."
+      );
       return;
     }
 
@@ -418,7 +575,7 @@ function App() {
 
     try {
       const response = await apiFetch(
-       "https://ricoztrack.onrender.com/api/projects",
+        `${API_BASE_URL}/api/projects`,
         {
           method: "POST",
           headers: {
@@ -428,11 +585,12 @@ function App() {
         }
       );
 
-      const data = await response.json();
+      const data = await getResponseData(response);
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Failed to create project"
+          data.message ||
+            "Failed to create project"
         );
       }
 
@@ -460,7 +618,10 @@ function App() {
       alert("Project created successfully!");
     } catch (error) {
       console.error(error);
-      alert("Could not create project.");
+      alert(
+        error.message ||
+          "Could not create project."
+      );
     }
   };
 
@@ -472,10 +633,11 @@ function App() {
     setEditingProjectId(project._id);
 
     setNewProject({
-      name: project.name,
-      manager: project.manager,
-      status: project.status,
-      progress: project.progress,
+      name: project.name || "",
+      manager: project.manager || "",
+      status:
+        project.status || "Planning",
+      progress: project.progress || 0,
       dueDate: project.dueDate || "",
     });
 
@@ -493,6 +655,16 @@ function App() {
       return;
     }
 
+    if (
+      !newProject.name ||
+      !newProject.manager
+    ) {
+      alert(
+        "Please enter Project Name and Manager."
+      );
+      return;
+    }
+
     const projectData = {
       name: newProject.name,
       manager: newProject.manager,
@@ -505,8 +677,10 @@ function App() {
     };
 
     try {
+      // IMPORTANT:
+      // Correct backend URL is used here.
       const response = await apiFetch(
-        `https://ricoztrack.onrender.com/api/projects/${editingProjectId}`,
+        `${API_BASE_URL}/api/projects/${editingProjectId}`,
         {
           method: "PUT",
           headers: {
@@ -516,20 +690,17 @@ function App() {
         }
       );
 
-     const text = await response.text();
-console.log("SERVER RESPONSE:", text);
+      const data = await getResponseData(response);
 
-let data = {};
-
-try {
-  data = JSON.parse(text);
-} catch (error) {
-  data = { message: text };
-}
+      console.log(
+        "UPDATE PROJECT RESPONSE:",
+        data
+      );
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Failed to update project"
+          data.message ||
+            "Failed to update project"
         );
       }
 
@@ -552,10 +723,25 @@ try {
       setEditingProjectId(null);
       setShowProjectForm(false);
 
+      setNewProject({
+        name: "",
+        manager: "",
+        status: "Planning",
+        progress: 0,
+        dueDate: "",
+      });
+
       alert("Project updated successfully!");
     } catch (error) {
-      console.error(error);
-      alert("Could not update project.");
+      console.error(
+        "Update project error:",
+        error
+      );
+
+      alert(
+        error.message ||
+          "Could not update project."
+      );
     }
   };
 
@@ -573,29 +759,41 @@ try {
     }
 
     try {
+      // IMPORTANT:
+      // Correct backend URL is used here.
       const response = await apiFetch(
-        `https://ricoztrack.onrender.com/api/projects/${id}`,
+        `${API_BASE_URL}/api/projects/${id}`,
         {
           method: "DELETE",
         }
       );
 
-      const data = await response.json();
+      const data = await getResponseData(response);
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Failed to delete project"
+          data.message ||
+            "Failed to delete project"
         );
       }
 
       setProjects((current) =>
-        current.filter((project) => project._id !== id)
+        current.filter(
+          (project) => project._id !== id
+        )
       );
 
       alert("Project deleted successfully!");
     } catch (error) {
-      console.error(error);
-      alert("Could not delete project.");
+      console.error(
+        "Delete project error:",
+        error
+      );
+
+      alert(
+        error.message ||
+          "Could not delete project."
+      );
     }
   };
 
@@ -611,13 +809,15 @@ try {
       !newTask.project ||
       !newTask.assignedTo
     ) {
-      alert("Please fill Task Name, Project and Assigned To.");
+      alert(
+        "Please fill Task Name, Project and Assigned To."
+      );
       return;
     }
 
     try {
       const response = await apiFetch(
-        "https://ricoztrack.onrender.com/api/tasks",
+        `${API_BASE_URL}/api/tasks`,
         {
           method: "POST",
           headers: {
@@ -627,15 +827,19 @@ try {
         }
       );
 
-      const data = await response.json();
+      const data = await getResponseData(response);
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Failed to create task"
+          data.message ||
+            "Failed to create task"
         );
       }
 
-      setTasks((current) => [...current, data]);
+      setTasks((current) => [
+        ...current,
+        data,
+      ]);
 
       setNewTask({
         name: "",
@@ -651,7 +855,10 @@ try {
       alert("Task created successfully!");
     } catch (error) {
       console.error(error);
-      alert("Could not create task.");
+      alert(
+        error.message ||
+          "Could not create task."
+      );
     }
   };
 
@@ -663,9 +870,9 @@ try {
     setEditingTaskId(task._id);
 
     setNewTask({
-      name: task.name,
-      project: task.project,
-      assignedTo: task.assignedTo,
+      name: task.name || "",
+      project: task.project || "",
+      assignedTo: task.assignedTo || "",
       priority: task.priority || "Medium",
       status: task.status || "Planning",
       dueDate: task.dueDate || "",
@@ -687,7 +894,7 @@ try {
 
     try {
       const response = await apiFetch(
-        `https://ricoztrack.onrender.com/api/tasks/${editingTaskId}`,
+        `${API_BASE_URL}/api/tasks/${editingTaskId}`,
         {
           method: "PUT",
           headers: {
@@ -697,17 +904,20 @@ try {
         }
       );
 
-      const data = await response.json();
+      const data = await getResponseData(response);
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Failed to update task"
+          data.message ||
+            "Failed to update task"
         );
       }
 
       setTasks((current) =>
         current.map((task) =>
-          task._id === editingTaskId ? data : task
+          task._id === editingTaskId
+            ? data
+            : task
         )
       );
 
@@ -717,7 +927,10 @@ try {
       alert("Task updated successfully!");
     } catch (error) {
       console.error(error);
-      alert("Could not update task.");
+      alert(
+        error.message ||
+          "Could not update task."
+      );
     }
   };
 
@@ -736,28 +949,34 @@ try {
 
     try {
       const response = await apiFetch(
-        `https://ricoztrack.onrender.com/api/tasks/${id}`,
+        `${API_BASE_URL}/api/tasks/${id}`,
         {
           method: "DELETE",
         }
       );
 
-      const data = await response.json();
+      const data = await getResponseData(response);
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Failed to delete task"
+          data.message ||
+            "Failed to delete task"
         );
       }
 
       setTasks((current) =>
-        current.filter((task) => task._id !== id)
+        current.filter(
+          (task) => task._id !== id
+        )
       );
 
       alert("Task deleted successfully!");
     } catch (error) {
       console.error(error);
-      alert("Could not delete task.");
+      alert(
+        error.message ||
+          "Could not delete task."
+      );
     }
   };
 
@@ -768,14 +987,19 @@ try {
   const handleCreateResource = async (event) => {
     event.preventDefault();
 
-    if (!newResource.name || !newResource.role) {
-      alert("Please enter Resource Name and Role.");
+    if (
+      !newResource.name ||
+      !newResource.role
+    ) {
+      alert(
+        "Please enter Resource Name and Role."
+      );
       return;
     }
 
     try {
       const response = await apiFetch(
-        "https://ricoztrack.onrender.com/api/resources",
+        `${API_BASE_URL}/api/resources`,
         {
           method: "POST",
           headers: {
@@ -783,20 +1007,26 @@ try {
           },
           body: JSON.stringify({
             ...newResource,
-            workload: Number(newResource.workload),
+            workload: Number(
+              newResource.workload
+            ),
           }),
         }
       );
 
-      const data = await response.json();
+      const data = await getResponseData(response);
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Failed to create resource"
+          data.message ||
+            "Failed to create resource"
         );
       }
 
-      setResources((current) => [...current, data]);
+      setResources((current) => [
+        ...current,
+        data,
+      ]);
 
       setNewResource({
         name: "",
@@ -812,7 +1042,10 @@ try {
       alert("Resource added successfully!");
     } catch (error) {
       console.error(error);
-      alert("Could not create resource.");
+      alert(
+        error.message ||
+          "Could not create resource."
+      );
     }
   };
 
@@ -831,28 +1064,35 @@ try {
 
     try {
       const response = await apiFetch(
-        `https://ricoztrack.onrender.com/api/resources/${id}`,
+        `${API_BASE_URL}/api/resources/${id}`,
         {
           method: "DELETE",
         }
       );
 
-      const data = await response.json();
+      const data = await getResponseData(response);
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Failed to delete resource"
+          data.message ||
+            "Failed to delete resource"
         );
       }
 
       setResources((current) =>
-        current.filter((resource) => resource._id !== id)
+        current.filter(
+          (resource) =>
+            resource._id !== id
+        )
       );
 
       alert("Resource deleted successfully!");
     } catch (error) {
       console.error(error);
-      alert("Could not delete resource.");
+      alert(
+        error.message ||
+          "Could not delete resource."
+      );
     }
   };
 
@@ -863,14 +1103,19 @@ try {
   const handleCreateRisk = async (event) => {
     event.preventDefault();
 
-    if (!newRisk.name || !newRisk.project) {
-      alert("Please enter Risk Name and Project.");
+    if (
+      !newRisk.name ||
+      !newRisk.project
+    ) {
+      alert(
+        "Please enter Risk Name and Project."
+      );
       return;
     }
 
     try {
       const response = await apiFetch(
-        "https://ricoztrack.onrender.com/api/risks",
+        `${API_BASE_URL}/api/risks`,
         {
           method: "POST",
           headers: {
@@ -888,11 +1133,12 @@ try {
         }
       );
 
-      const data = await response.json();
+      const data = await getResponseData(response);
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Failed to create risk"
+          data.message ||
+            "Failed to create risk"
         );
       }
 
@@ -900,8 +1146,9 @@ try {
         ...current,
         {
           ...data,
-          name: data.title,
-          mitigation: newRisk.mitigation,
+          name: data.title || newRisk.name,
+          mitigation:
+            newRisk.mitigation,
         },
       ]);
 
@@ -920,7 +1167,10 @@ try {
       alert("Risk added successfully!");
     } catch (error) {
       console.error(error);
-      alert("Could not create risk.");
+      alert(
+        error.message ||
+          "Could not create risk."
+      );
     }
   };
 
@@ -939,28 +1189,34 @@ try {
 
     try {
       const response = await apiFetch(
-       `https://ricoztrack.onrender.com/api/risks/${id}`,
+        `${API_BASE_URL}/api/risks/${id}`,
         {
           method: "DELETE",
         }
       );
 
-      const data = await response.json();
+      const data = await getResponseData(response);
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Failed to delete risk"
+          data.message ||
+            "Failed to delete risk"
         );
       }
 
       setRisks((current) =>
-        current.filter((risk) => risk._id !== id)
+        current.filter(
+          (risk) => risk._id !== id
+        )
       );
 
       alert("Risk deleted successfully!");
     } catch (error) {
       console.error(error);
-      alert("Could not delete risk.");
+      alert(
+        error.message ||
+          "Could not delete risk."
+      );
     }
   };
 
@@ -968,7 +1224,9 @@ try {
   // CREATE DEPENDENCY
   // =========================
 
-  const handleCreateDependency = async (event) => {
+  const handleCreateDependency = async (
+    event
+  ) => {
     event.preventDefault();
 
     if (
@@ -977,31 +1235,39 @@ try {
       !newDependency.task ||
       !newDependency.dependsOn
     ) {
-      alert("Please fill all dependency fields.");
+      alert(
+        "Please fill all dependency fields."
+      );
       return;
     }
 
     try {
       const response = await apiFetch(
-        "https://ricoztrack.onrender.com/api/dependencies",
+        `${API_BASE_URL}/api/dependencies`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(newDependency),
+          body: JSON.stringify(
+            newDependency
+          ),
         }
       );
 
-      const data = await response.json();
+      const data = await getResponseData(response);
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Failed to create dependency"
+          data.message ||
+            "Failed to create dependency"
         );
       }
 
-      setDependencies((current) => [...current, data]);
+      setDependencies((current) => [
+        ...current,
+        data,
+      ]);
 
       setNewDependency({
         name: "",
@@ -1014,10 +1280,15 @@ try {
 
       setShowDependencyForm(false);
 
-      alert("Dependency added successfully!");
+      alert(
+        "Dependency added successfully!"
+      );
     } catch (error) {
       console.error(error);
-      alert("Could not create dependency.");
+      alert(
+        error.message ||
+          "Could not create dependency."
+      );
     }
   };
 
@@ -1025,7 +1296,9 @@ try {
   // DELETE DEPENDENCY
   // =========================
 
-  const handleDeleteDependency = async (id) => {
+  const handleDeleteDependency = async (
+    id
+  ) => {
     if (
       !window.confirm(
         "Are you sure you want to delete this dependency?"
@@ -1036,30 +1309,37 @@ try {
 
     try {
       const response = await apiFetch(
-       `https://ricoztrack.onrender.com/api/dependencies/${id}`,
+        `${API_BASE_URL}/api/dependencies/${id}`,
         {
           method: "DELETE",
         }
       );
 
-      const data = await response.json();
+      const data = await getResponseData(response);
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Failed to delete dependency"
+          data.message ||
+            "Failed to delete dependency"
         );
       }
 
       setDependencies((current) =>
         current.filter(
-          (dependency) => dependency._id !== id
+          (dependency) =>
+            dependency._id !== id
         )
       );
 
-      alert("Dependency deleted successfully!");
+      alert(
+        "Dependency deleted successfully!"
+      );
     } catch (error) {
       console.error(error);
-      alert("Could not delete dependency.");
+      alert(
+        error.message ||
+          "Could not delete dependency."
+      );
     }
   };
 
@@ -1069,23 +1349,29 @@ try {
 
   const renderDashboard = () => {
     const activeProjects = projects.filter(
-      (project) => project.status === "In Progress"
+      (project) =>
+        project.status === "In Progress"
     ).length;
 
-    const completedProjects = projects.filter(
-      (project) => project.status === "Completed"
-    ).length;
+    const completedProjects =
+      projects.filter(
+        (project) =>
+          project.status === "Completed"
+      ).length;
 
     const activeTasks = tasks.filter(
-      (task) => task.status === "In Progress"
+      (task) =>
+        task.status === "In Progress"
     ).length;
 
     const completedTasks = tasks.filter(
-      (task) => task.status === "Completed"
+      (task) =>
+        task.status === "Completed"
     ).length;
 
     const planningTasks = tasks.filter(
-      (task) => task.status === "Planning"
+      (task) =>
+        task.status === "Planning"
     ).length;
 
     const averageProgress =
@@ -1093,7 +1379,10 @@ try {
         ? Math.round(
             projects.reduce(
               (total, project) =>
-                total + Number(project.progress || 0),
+                total +
+                Number(
+                  project.progress || 0
+                ),
               0
             ) / projects.length
           )
@@ -1125,7 +1414,9 @@ try {
 
           <div className="card">
             <h3>✅ Completed Projects</h3>
-            <strong>{completedProjects}</strong>
+            <strong>
+              {completedProjects}
+            </strong>
           </div>
 
           <div className="card">
@@ -1147,14 +1438,21 @@ try {
                   >
                     <div className="dashboard-project-heading">
                       <div>
-                        <strong>{project.name}</strong>
+                        <strong>
+                          {project.name}
+                        </strong>
+
                         <span>
-                          {project.manager || "No manager"}
+                          {project.manager ||
+                            "No manager"}
                         </span>
                       </div>
 
                       <strong>
-                        {Number(project.progress || 0)}%
+                        {Number(
+                          project.progress || 0
+                        )}
+                        %
                       </strong>
                     </div>
 
@@ -1162,15 +1460,23 @@ try {
                       <div
                         className="progress-fill"
                         style={{
-                          width: `${Number(project.progress || 0)}%`,
+                          width: `${Number(
+                            project.progress ||
+                              0
+                          )}%`,
                         }}
                       ></div>
                     </div>
 
                     <div className="dashboard-project-footer">
-                      <span>{project.status}</span>
                       <span>
-                        Due: {project.dueDate || "Not set"}
+                        {project.status}
+                      </span>
+
+                      <span>
+                        Due:{" "}
+                        {project.dueDate ||
+                          "Not set"}
                       </span>
                     </div>
                   </div>
@@ -1187,22 +1493,30 @@ try {
             <div className="dashboard-stat-list">
               <div className="dashboard-stat-row">
                 <span>All Tasks</span>
-                <strong>{tasks.length}</strong>
+                <strong>
+                  {tasks.length}
+                </strong>
               </div>
 
               <div className="dashboard-stat-row">
                 <span>In Progress</span>
-                <strong>{activeTasks}</strong>
+                <strong>
+                  {activeTasks}
+                </strong>
               </div>
 
               <div className="dashboard-stat-row">
                 <span>Planning</span>
-                <strong>{planningTasks}</strong>
+                <strong>
+                  {planningTasks}
+                </strong>
               </div>
 
               <div className="dashboard-stat-row">
                 <span>Completed</span>
-                <strong>{completedTasks}</strong>
+                <strong>
+                  {completedTasks}
+                </strong>
               </div>
             </div>
           </div>
@@ -1213,8 +1527,13 @@ try {
 
           <div className="overall-progress-wrapper">
             <div className="overall-progress-header">
-              <span>Average project completion</span>
-              <strong>{averageProgress}%</strong>
+              <span>
+                Average project completion
+              </span>
+
+              <strong>
+                {averageProgress}%
+              </strong>
             </div>
 
             <div className="progress-bar overall-progress-bar">
@@ -1240,7 +1559,9 @@ try {
       <header className="topbar">
         <div>
           <h1>Projects</h1>
-          <p>Manage and track all your projects</p>
+          <p>
+            Manage and track all your projects
+          </p>
         </div>
 
         <button
@@ -1372,16 +1693,22 @@ try {
                 <td>{project.name}</td>
                 <td>{project.manager}</td>
                 <td>{project.status}</td>
-                <td>{project.progress}%</td>
                 <td>
-                  {project.dueDate || "Not set"}
+                  {project.progress}%
+                </td>
+
+                <td>
+                  {project.dueDate ||
+                    "Not set"}
                 </td>
 
                 <td>
                   <button
                     className="edit-button"
                     onClick={() =>
-                      handleEditProject(project)
+                      handleEditProject(
+                        project
+                      )
                     }
                   >
                     Edit
@@ -1390,7 +1717,9 @@ try {
                   <button
                     className="delete-button"
                     onClick={() =>
-                      handleDeleteProject(project._id)
+                      handleDeleteProject(
+                        project._id
+                      )
                     }
                   >
                     Delete
@@ -1417,7 +1746,8 @@ try {
       taskFilter === "All"
         ? tasks
         : tasks.filter(
-            (task) => task.status === taskFilter
+            (task) =>
+              task.status === taskFilter
           );
 
     return (
@@ -1425,7 +1755,9 @@ try {
         <header className="topbar">
           <div>
             <h1>Tasks</h1>
-            <p>Manage and track project tasks</p>
+            <p>
+              Manage and track project tasks
+            </p>
           </div>
 
           <button
@@ -1439,7 +1771,8 @@ try {
 
                 setNewTask({
                   name: "",
-                  project: projects[0]?.name || "",
+                  project:
+                    projects[0]?.name || "",
                   assignedTo: "",
                   priority: "Medium",
                   status: "Planning",
@@ -1488,6 +1821,7 @@ try {
                 name="project"
                 value={newTask.project}
                 onChange={handleTaskChange}
+                required
               >
                 <option value="">
                   Select Project
@@ -1608,8 +1942,10 @@ try {
                   <td>{task.assignedTo}</td>
                   <td>{task.priority}</td>
                   <td>{task.status}</td>
+
                   <td>
-                    {task.dueDate || "Not set"}
+                    {task.dueDate ||
+                      "Not set"}
                   </td>
 
                   <td>
@@ -1625,7 +1961,9 @@ try {
                     <button
                       className="delete-button"
                       onClick={() =>
-                        handleDeleteTask(task._id)
+                        handleDeleteTask(
+                          task._id
+                        )
                       }
                     >
                       Delete
@@ -1649,17 +1987,21 @@ try {
   // =========================
 
   const renderResources = () => {
-    const availableResources = resources.filter(
-      (resource) =>
-        (resource.availability ||
-          resource.status) === "Available"
-    ).length;
+    const availableResources =
+      resources.filter(
+        (resource) =>
+          (resource.availability ||
+            resource.status) ===
+          "Available"
+      ).length;
 
-    const busyResources = resources.filter(
-      (resource) =>
-        (resource.availability ||
-          resource.status) === "Busy"
-    ).length;
+    const busyResources =
+      resources.filter(
+        (resource) =>
+          (resource.availability ||
+            resource.status) ===
+          "Busy"
+      ).length;
 
     return (
       <>
@@ -1667,7 +2009,8 @@ try {
           <div>
             <h1>Resources</h1>
             <p>
-              Manage project resources and team members
+              Manage project resources and team
+              members
             </p>
           </div>
 
@@ -1689,14 +2032,18 @@ try {
           <section className="form-box">
             <h2>Add New Resource</h2>
 
-            <form onSubmit={handleCreateResource}>
+            <form
+              onSubmit={handleCreateResource}
+            >
               <label>Resource Name</label>
 
               <input
                 type="text"
                 name="name"
                 value={newResource.name}
-                onChange={handleResourceChange}
+                onChange={
+                  handleResourceChange
+                }
                 placeholder="Enter resource name"
                 required
               />
@@ -1707,7 +2054,9 @@ try {
                 type="text"
                 name="role"
                 value={newResource.role}
-                onChange={handleResourceChange}
+                onChange={
+                  handleResourceChange
+                }
                 placeholder="e.g. Frontend Developer"
                 required
               />
@@ -1718,7 +2067,9 @@ try {
                 type="text"
                 name="skills"
                 value={newResource.skills}
-                onChange={handleResourceChange}
+                onChange={
+                  handleResourceChange
+                }
                 placeholder="React, JavaScript"
               />
 
@@ -1726,8 +2077,12 @@ try {
 
               <select
                 name="availability"
-                value={newResource.availability}
-                onChange={handleResourceChange}
+                value={
+                  newResource.availability
+                }
+                onChange={
+                  handleResourceChange
+                }
               >
                 <option>Available</option>
                 <option>Busy</option>
@@ -1738,7 +2093,9 @@ try {
               <select
                 name="project"
                 value={newResource.project}
-                onChange={handleResourceChange}
+                onChange={
+                  handleResourceChange
+                }
               >
                 <option>Unassigned</option>
 
@@ -1760,7 +2117,9 @@ try {
                 min="0"
                 max="100"
                 value={newResource.workload}
-                onChange={handleResourceChange}
+                onChange={
+                  handleResourceChange
+                }
               />
 
               <button
@@ -1776,12 +2135,16 @@ try {
         <section className="cards">
           <div className="card">
             <h3>Total Resources</h3>
-            <strong>{resources.length}</strong>
+            <strong>
+              {resources.length}
+            </strong>
           </div>
 
           <div className="card">
             <h3>Available</h3>
-            <strong>{availableResources}</strong>
+            <strong>
+              {availableResources}
+            </strong>
           </div>
 
           <div className="card">
@@ -1808,13 +2171,17 @@ try {
               {resources.map((resource) => (
                 <tr key={resource._id}>
                   <td>{resource.name}</td>
+
                   <td>
-                    {resource.role || resource.type}
+                    {resource.role ||
+                      resource.type}
                   </td>
+
                   <td>
                     {resource.project ||
                       "Unassigned"}
                   </td>
+
                   <td>
                     {resource.availability ||
                       resource.status}
@@ -1854,7 +2221,9 @@ try {
       <header className="topbar">
         <div>
           <h1>Risks</h1>
-          <p>Identify and manage project risks</p>
+          <p>
+            Identify and manage project risks
+          </p>
         </div>
 
         <button
@@ -1891,6 +2260,7 @@ try {
               name="project"
               value={newRisk.project}
               onChange={handleRiskChange}
+              required
             >
               <option value="">
                 Select Project
@@ -1991,10 +2361,13 @@ try {
               <tr key={risk._id}>
                 <td>{risk.name}</td>
                 <td>{risk.project}</td>
-                <td>{risk.probability}</td>
+                <td>
+                  {risk.probability}
+                </td>
                 <td>{risk.impact}</td>
                 <td>{risk.severity}</td>
                 <td>{risk.status}</td>
+
                 <td>
                   {risk.mitigation || "-"}
                 </td>
@@ -2003,7 +2376,9 @@ try {
                   <button
                     className="delete-button"
                     onClick={() =>
-                      handleDeleteRisk(risk._id)
+                      handleDeleteRisk(
+                        risk._id
+                      )
                     }
                   >
                     Delete
@@ -2053,14 +2428,20 @@ try {
         <section className="form-box">
           <h2>Add New Dependency</h2>
 
-          <form onSubmit={handleCreateDependency}>
+          <form
+            onSubmit={
+              handleCreateDependency
+            }
+          >
             <label>Dependency Name</label>
 
             <input
               type="text"
               name="name"
               value={newDependency.name}
-              onChange={handleDependencyChange}
+              onChange={
+                handleDependencyChange
+              }
               placeholder="Enter dependency name"
               required
             />
@@ -2070,7 +2451,10 @@ try {
             <select
               name="project"
               value={newDependency.project}
-              onChange={handleDependencyChange}
+              onChange={
+                handleDependencyChange
+              }
+              required
             >
               <option value="">
                 Select Project
@@ -2091,7 +2475,10 @@ try {
             <select
               name="task"
               value={newDependency.task}
-              onChange={handleDependencyChange}
+              onChange={
+                handleDependencyChange
+              }
+              required
             >
               <option value="">
                 Select Task
@@ -2112,8 +2499,12 @@ try {
             <input
               type="text"
               name="dependsOn"
-              value={newDependency.dependsOn}
-              onChange={handleDependencyChange}
+              value={
+                newDependency.dependsOn
+              }
+              onChange={
+                handleDependencyChange
+              }
               placeholder="Enter dependent task"
               required
             />
@@ -2123,12 +2514,22 @@ try {
             <select
               name="type"
               value={newDependency.type}
-              onChange={handleDependencyChange}
+              onChange={
+                handleDependencyChange
+              }
             >
-              <option>Finish-to-Start</option>
-              <option>Start-to-Start</option>
-              <option>Finish-to-Finish</option>
-              <option>Start-to-Finish</option>
+              <option>
+                Finish-to-Start
+              </option>
+              <option>
+                Start-to-Start
+              </option>
+              <option>
+                Finish-to-Finish
+              </option>
+              <option>
+                Start-to-Finish
+              </option>
             </select>
 
             <label>Status</label>
@@ -2136,7 +2537,9 @@ try {
             <select
               name="status"
               value={newDependency.status}
-              onChange={handleDependencyChange}
+              onChange={
+                handleDependencyChange
+              }
             >
               <option>Pending</option>
               <option>Active</option>
@@ -2170,29 +2573,48 @@ try {
           </thead>
 
           <tbody>
-            {dependencies.map((dependency) => (
-              <tr key={dependency._id}>
-                <td>{dependency.name}</td>
-                <td>{dependency.project}</td>
-                <td>{dependency.task}</td>
-                <td>{dependency.dependsOn}</td>
-                <td>{dependency.type}</td>
-                <td>{dependency.status}</td>
+            {dependencies.map(
+              (dependency) => (
+                <tr key={dependency._id}>
+                  <td>
+                    {dependency.name}
+                  </td>
 
-                <td>
-                  <button
-                    className="delete-button"
-                    onClick={() =>
-                      handleDeleteDependency(
-                        dependency._id
-                      )
-                    }
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
+                  <td>
+                    {dependency.project}
+                  </td>
+
+                  <td>
+                    {dependency.task}
+                  </td>
+
+                  <td>
+                    {dependency.dependsOn}
+                  </td>
+
+                  <td>
+                    {dependency.type}
+                  </td>
+
+                  <td>
+                    {dependency.status}
+                  </td>
+
+                  <td>
+                    <button
+                      className="delete-button"
+                      onClick={() =>
+                        handleDeleteDependency(
+                          dependency._id
+                        )
+                      }
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              )
+            )}
           </tbody>
         </table>
 
@@ -2209,43 +2631,53 @@ try {
 
   const renderReports = () => {
     const completedTasks = tasks.filter(
-      (task) => task.status === "Completed"
+      (task) =>
+        task.status === "Completed"
     ).length;
 
     const inProgressTasks = tasks.filter(
-      (task) => task.status === "In Progress"
+      (task) =>
+        task.status === "In Progress"
     ).length;
 
     const planningTasks = tasks.filter(
-      (task) => task.status === "Planning"
+      (task) =>
+        task.status === "Planning"
     ).length;
 
-    const availableResources = resources.filter(
-      (resource) =>
-        (resource.availability ||
-          resource.status) === "Available"
-    ).length;
+    const availableResources =
+      resources.filter(
+        (resource) =>
+          (resource.availability ||
+            resource.status) ===
+          "Available"
+      ).length;
 
-    const busyResources = resources.filter(
-      (resource) =>
-        (resource.availability ||
-          resource.status) === "Busy"
-    ).length;
+    const busyResources =
+      resources.filter(
+        (resource) =>
+          (resource.availability ||
+            resource.status) ===
+          "Busy"
+      ).length;
 
     const openRisks = risks.filter(
       (risk) => risk.status === "Open"
     ).length;
 
     const criticalRisks = risks.filter(
-      (risk) => risk.severity === "Critical"
+      (risk) =>
+        risk.severity === "Critical"
     ).length;
 
     const highRisks = risks.filter(
-      (risk) => risk.severity === "High"
+      (risk) =>
+        risk.severity === "High"
     ).length;
 
     const mitigatedRisks = risks.filter(
-      (risk) => risk.status === "Mitigated"
+      (risk) =>
+        risk.status === "Mitigated"
     ).length;
 
     const activeDependencies =
@@ -2272,7 +2704,8 @@ try {
           <div>
             <h1>Reports</h1>
             <p>
-              Project performance and management reports
+              Project performance and
+              management reports
             </p>
           </div>
         </header>
@@ -2283,22 +2716,30 @@ try {
           <div className="cards">
             <div className="card">
               <h3>Total Tasks</h3>
-              <strong>{tasks.length}</strong>
+              <strong>
+                {tasks.length}
+              </strong>
             </div>
 
             <div className="card">
               <h3>Completed</h3>
-              <strong>{completedTasks}</strong>
+              <strong>
+                {completedTasks}
+              </strong>
             </div>
 
             <div className="card">
               <h3>In Progress</h3>
-              <strong>{inProgressTasks}</strong>
+              <strong>
+                {inProgressTasks}
+              </strong>
             </div>
 
             <div className="card">
               <h3>Planning</h3>
-              <strong>{planningTasks}</strong>
+              <strong>
+                {planningTasks}
+              </strong>
             </div>
           </div>
         </section>
@@ -2309,17 +2750,23 @@ try {
           <div className="cards">
             <div className="card">
               <h3>Total Resources</h3>
-              <strong>{resources.length}</strong>
+              <strong>
+                {resources.length}
+              </strong>
             </div>
 
             <div className="card">
               <h3>Available</h3>
-              <strong>{availableResources}</strong>
+              <strong>
+                {availableResources}
+              </strong>
             </div>
 
             <div className="card">
               <h3>Busy</h3>
-              <strong>{busyResources}</strong>
+              <strong>
+                {busyResources}
+              </strong>
             </div>
           </div>
         </section>
@@ -2330,27 +2777,37 @@ try {
           <div className="cards">
             <div className="card">
               <h3>Total Risks</h3>
-              <strong>{risks.length}</strong>
+              <strong>
+                {risks.length}
+              </strong>
             </div>
 
             <div className="card">
               <h3>Open Risks</h3>
-              <strong>{openRisks}</strong>
+              <strong>
+                {openRisks}
+              </strong>
             </div>
 
             <div className="card">
               <h3>Critical Risks</h3>
-              <strong>{criticalRisks}</strong>
+              <strong>
+                {criticalRisks}
+              </strong>
             </div>
 
             <div className="card">
               <h3>High Risks</h3>
-              <strong>{highRisks}</strong>
+              <strong>
+                {highRisks}
+              </strong>
             </div>
 
             <div className="card">
               <h3>Mitigated</h3>
-              <strong>{mitigatedRisks}</strong>
+              <strong>
+                {mitigatedRisks}
+              </strong>
             </div>
           </div>
         </section>
@@ -2360,7 +2817,10 @@ try {
 
           <div className="cards">
             <div className="card">
-              <h3>Total Dependencies</h3>
+              <h3>
+                Total Dependencies
+              </h3>
+
               <strong>
                 {dependencies.length}
               </strong>
@@ -2368,6 +2828,7 @@ try {
 
             <div className="card">
               <h3>Active</h3>
+
               <strong>
                 {activeDependencies}
               </strong>
@@ -2375,6 +2836,7 @@ try {
 
             <div className="card">
               <h3>Pending</h3>
+
               <strong>
                 {pendingDependencies}
               </strong>
@@ -2382,6 +2844,7 @@ try {
 
             <div className="card">
               <h3>Completed</h3>
+
               <strong>
                 {completedDependencies}
               </strong>
@@ -2409,9 +2872,14 @@ try {
                   <td>{project.name}</td>
                   <td>{project.manager}</td>
                   <td>{project.status}</td>
-                  <td>{project.progress}%</td>
+
                   <td>
-                    {project.dueDate || "Not set"}
+                    {project.progress}%
+                  </td>
+
+                  <td>
+                    {project.dueDate ||
+                      "Not set"}
                   </td>
                 </tr>
               ))}
@@ -2422,19 +2890,159 @@ try {
     );
   };
 
-  // =========================
-  // LOGIN SCREEN
-  // =========================
 
-  if (!loggedInUser) {
-    return (
-      <Login
-        onLogin={(user) => {
-          setLoggedInUser(user);
-        }}
-      />
-    );
-  }
+  // =========================
+// LANDING PAGE
+// =========================
+
+if (!loggedInUser && showLanding) {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background:
+          "linear-gradient(135deg, #0f172a, #1e3a8a)",
+        color: "white",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "40px",
+        textAlign: "center",
+      }}
+    >
+      <div style={{ maxWidth: "850px" }}>
+        <div
+          style={{
+            fontSize: "64px",
+            marginBottom: "20px",
+          }}
+        >
+          📊
+        </div>
+
+        <h1
+          style={{
+            fontSize: "56px",
+            marginBottom: "15px",
+          }}
+        >
+          RicozTrack
+        </h1>
+
+        <p
+          style={{
+            fontSize: "22px",
+            lineHeight: "1.6",
+            color: "#dbeafe",
+            marginBottom: "35px",
+          }}
+        >
+          A smart project management platform to manage
+          projects, tasks, resources, risks and dependencies
+          from one place.
+        </p>
+
+        <div
+          style={{
+            display: "flex",
+            gap: "15px",
+            justifyContent: "center",
+            flexWrap: "wrap",
+            marginBottom: "45px",
+          }}
+        >
+          <button
+            onClick={() => setShowLanding(false)}
+            style={{
+              padding: "15px 32px",
+              border: "none",
+              borderRadius: "10px",
+              background: "#2563eb",
+              color: "white",
+              fontSize: "17px",
+              fontWeight: "600",
+              cursor: "pointer",
+            }}
+          >
+            Login to Dashboard →
+          </button>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: "15px",
+          }}
+        >
+          <div
+            style={{
+              background: "rgba(255,255,255,0.1)",
+              padding: "22px",
+              borderRadius: "12px",
+            }}
+          >
+            📁
+            <h3>Project Management</h3>
+            <p>Track project progress and deadlines.</p>
+          </div>
+
+          <div
+            style={{
+              background: "rgba(255,255,255,0.1)",
+              padding: "22px",
+              borderRadius: "12px",
+            }}
+          >
+            ✅
+            <h3>Task Management</h3>
+            <p>Create, update and track tasks.</p>
+          </div>
+
+          <div
+            style={{
+              background: "rgba(255,255,255,0.1)",
+              padding: "22px",
+              borderRadius: "12px",
+            }}
+          >
+            👥
+            <h3>Resources</h3>
+            <p>Manage team members and workloads.</p>
+          </div>
+
+          <div
+            style={{
+              background: "rgba(255,255,255,0.1)",
+              padding: "22px",
+              borderRadius: "12px",
+            }}
+          >
+            ⚠️
+            <h3>Risk Management</h3>
+            <p>Identify and monitor project risks.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =========================
+// LOGIN SCREEN
+// =========================
+
+if (!loggedInUser) {
+  return (
+    <Login
+      onLogin={(user) => {
+        setLoggedInUser(user);
+        setShowLanding(false);
+      }}
+    />
+  );
+}
 
   // =========================
   // MAIN APPLICATION
